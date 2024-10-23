@@ -1,3 +1,4 @@
+import { Command } from "@/lib/cqrs"
 import { Result } from "@/lib/result"
 import { uuid } from "@/lib/uuid"
 
@@ -54,7 +55,7 @@ export class Column {
     return this.props.tasks
   }
 
-  set tasks(value) {
+  private set tasks(value) {
     this.props.tasks = value
   }
 
@@ -69,11 +70,44 @@ export class Column {
     })
   }
 
-  public EditTitle(title: string) {
+  public EditTitle(title: string): Command {
     this.title = title
   }
 
-  public EditIcon(icon: string) {
+  public EditIcon(icon: string): Command {
     this.icon = icon
+  }
+
+  public AddTask({ title }: { title: string }): Command {
+    const task = Task.Create({
+      columnId: this.id,
+      title,
+    })
+
+    this.tasks.push(task)
+  }
+
+  public EditTaskTitle(taskId: string, title: string): Command {
+    const task = this.tasks.find((task) => task.id === taskId)
+
+    if (!task) {
+      throw Result.Fail("Task not found!")
+    }
+
+    task.EditTitle(title)
+  }
+
+  public BlockTask(taskId: string, reason: string): Command {
+    const task = this.tasks.find((task) => task.id === taskId)
+
+    if (!task) {
+      throw Result.Fail("Task not found!")
+    }
+
+    task.Block(reason)
+  }
+
+  public RemoveTask(taskId: string): Command {
+    this.tasks = this.tasks.filter((task) => task.id !== taskId)
   }
 }

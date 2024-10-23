@@ -20,14 +20,6 @@ interface LocalStorageColumn {
   icon: string
 }
 
-function localStorageColumnMapper(column: LocalStorageColumn): Column {
-  return Column.Create({
-    id: column.id,
-    title: column.title,
-    icon: column.icon,
-  })
-}
-
 class LocalStorageColumnsRepository implements ColumnsRepository {
   constructor(
     private tasksRepository: TasksRepository,
@@ -77,9 +69,7 @@ class LocalStorageColumnsRepository implements ColumnsRepository {
 
     localStorage.setItem(this.columns, JSON.stringify(columns))
 
-    for (const task of column.tasks) {
-      await this.tasksRepository.save(task)
-    }
+    await this.tasksRepository.bulkSave(column.tasks, column.id)
   }
 
   async list(): Promise<Column[]> {
@@ -110,7 +100,14 @@ class LocalStorageColumnsRepository implements ColumnsRepository {
       return null
     }
 
-    return localStorageColumnMapper(column)
+    const tasks = await this.tasksRepository.listByColumnId(id)
+
+    return Column.Create({
+      id: column.id,
+      title: column.title,
+      icon: column.icon,
+      tasks,
+    })
   }
 
   async remove(id: string): Promise<void> {

@@ -4,29 +4,22 @@ import {
   subtasksRepository,
   SubtasksRepository,
 } from "../subtasks/subtasks-repository"
-import { Task } from "./task"
+import { Task, TaskStatus } from "./task"
 
 export interface TasksRepository {
-  save(task: Task): Promise<void>
-  remove(id: string): Promise<void>
   listByColumnId(columnId: string): Promise<Task[]>
+
+  bulkSave(tasks: Task[], columnId: string): Promise<void>
+  remove(id: string): Promise<void>
 }
 
 interface LocalStorageTask {
   id: string
   columnId: string
   title: string
-  status: "to do"
+  status: TaskStatus
+  reason?: string
 }
-
-// function localStorageTaskMapper(task: LocalStorageTask): Task {
-//   return Task.Create({
-//     id: task.id,
-//     columnId: task.columnId,
-//     status: task.status,
-//     title: task.title,
-//   })
-// }
 
 class LocalStorageTasksRepository implements TasksRepository {
   constructor(
@@ -56,31 +49,45 @@ class LocalStorageTasksRepository implements TasksRepository {
     // localStorage.setItem(this.tasks, JSON.stringify(seed))
   }
 
-  async save(task: Task): Promise<void> {
-    const tasks = JSON.parse(
+  private getTasks() {
+    return JSON.parse(
       localStorage.getItem(this.tasks)!
     ) as Array<LocalStorageTask>
+  }
 
-    const taskEntry = tasks.findIndex((t) => t.id === task.id)
+  async bulkSave(tasks: Task[], columnId: string): Promise<void> {
+    const taskList = this.getTasks()
 
-    const newTask: LocalStorageTask = {
-      id: task.id,
-      columnId: task.columnId,
-      status: task.status,
-      title: task.title,
+    for (const task of tasks) {
+      const newTask: LocalStorageTask = {
+        id: task.id,
+        columnId: task.columnId,
+        status: task.status,
+        title: task.title,
+        reason: task.reason,
+      }
+
+      const taskEntry = taskList.findIndex((t) => t.id === task.id)
+
+      if (taskEntry === -1) {
+        taskList.push(newTask)
+      } else {
+        taskList[taskEntry] = newTask
+      }
     }
 
-    if (taskEntry > 0 && tasks[taskEntry] !== newTask) {
-      tasks[taskEntry] = newTask
-    } else {
-      tasks.push(newTask)
-    }
+    localStorage.setItem(this.tasks, JSON.stringify(taskList))
 
-    localStorage.setItem(this.tasks, JSON.stringify(tasks))
+    const tasksToBeDeleted = taskList
+      .filter((task) => task.columnId === columnId)
+      .filter((task) => !tasks.find((t) => t.id === task.id))
 
-    for (const subtask of task.subtasks) {
-      await this.subtasksRepository.save(subtask)
+    for (const task of tasksToBeDeleted) {
+      await this.remove(task.id)
     }
+    // for (const subtask of task.subtasks) {
+    //   await this.subtasksRepository.save(subtask)
+    // }
   }
 
   async remove(id: string): Promise<void> {

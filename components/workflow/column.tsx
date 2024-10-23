@@ -5,12 +5,13 @@ import { EllipsisVerticalIcon, PlusIcon } from "lucide-react"
 import { toast } from "sonner"
 import { useDebouncedCallback } from "use-debounce"
 import dynamic from "next/dynamic"
+import { EmojiClickData, EmojiStyle, Theme } from "emoji-picker-react"
+import { useTheme } from "next-themes"
+
 const EmojiPicker = dynamic(() => import("emoji-picker-react"), {
   ssr: false,
   loading: () => <Spinner />,
 })
-import { EmojiClickData, EmojiStyle, Theme } from "emoji-picker-react"
-import { useTheme } from "next-themes"
 
 import {
   AlertDialog,
@@ -32,11 +33,11 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 import { Task as ITask } from "@/lib/workflow/tasks/task"
-// import { Task } from "./task"
 import { workflow } from "./context"
 
 import { ResizablePanel } from "@/components/ui/resizable"
 import { Spinner } from "../ui/spinner"
+import { Task } from "./task"
 
 // https://dtang.dev/using-content-editable-in-react/
 function EditableTitle({
@@ -119,12 +120,15 @@ function HeaderTitle({
     })
   }, 500)
 
-  const iconUpdate = useCallback(async (icon: string) => {
-    await columns.editIcon({
-      columnId: id,
-      icon,
-    })
-  }, [columns, id])
+  const iconUpdate = useCallback(
+    async (icon: string) => {
+      await columns.editIcon({
+        columnId: id,
+        icon,
+      })
+    },
+    [columns, id]
+  )
 
   return (
     <div data-column-header={id} className="flex items-center gap-3">
@@ -145,14 +149,15 @@ function HeaderTitle({
 }
 
 function HeaderActions({ id }: { id: string }) {
-  const { columns } = workflow()
+  const { columns, tasks } = workflow()
 
   async function handleCreateTask() {
-    // const task = ITask.Create({
-    //   columnId: id,
-    //   title: "",
-    // })
-    // await createTask(task)
+    await tasks.create({
+      columnId: id,
+      title: "Placeholder Title",
+    })
+
+    toast.success("Task created")
   }
 
   async function handleDeleteColumn() {
@@ -243,7 +248,7 @@ export function Column({
   id,
   title,
   icon,
-  // tasks,
+  tasks,
 }: {
   id: string
   title: string
@@ -259,15 +264,16 @@ export function Column({
           <HeaderActions id={id} />
         </ColumnHeader>
 
-        {/* {tasks.map((task) => (
-        <Task
-          columnId={id}
-          key={task.id}
-          id={task.id}
-          title={task.title}
-          subtasks={task.subtasks}
-        />
-      ))} */}
+        {tasks.map((task) => (
+          <Task
+            key={task.id}
+            columnId={id}
+            id={task.id}
+            title={task.title}
+            status={task.status}
+            subtasks={task.subtasks}
+          />
+        ))}
       </section>
     </ResizablePanel>
   )
