@@ -52,9 +52,44 @@ import {
 } from "@/lib/workflow/tasks/use-cases/block-task"
 
 import {
+  unblockTask as unblockTaskUseCase,
+  UnblockTaskRequest,
+} from "@/lib/workflow/tasks/use-cases/unblock-task"
+
+import {
   deleteTask as deleteTaskUseCase,
   DeleteTaskRequest,
 } from "@/lib/workflow/tasks/use-cases/delete-task"
+
+import {
+  createSubtask as createSubtaskUseCase,
+  CreateSubtaskRequest,
+} from "@/lib/workflow/subtasks/use-cases/create-subtask"
+
+import {
+  editSubtaskReason as editSubtaskReasonUseCase,
+  EditSubtaskReasonRequest,
+} from "@/lib/workflow/subtasks/use-cases/edit-subtask-reason"
+
+import {
+  editSubtaskText as editSubtaskTextUseCase,
+  EditSubtaskTextRequest,
+} from "@/lib/workflow/subtasks/use-cases/edit-subtask-text"
+
+import {
+  checkSubtask as checkSubtaskUseCase,
+  CheckSubtaskRequest,
+} from "@/lib/workflow/subtasks/use-cases/check-subtask"
+
+import {
+  uncheckSubtask as uncheckSubtaskUseCase,
+  UncheckSubtaskRequest,
+} from "@/lib/workflow/subtasks/use-cases/uncheck-subtask"
+
+import {
+  deleteSubtask as deleteSubtaskUseCase,
+  DeleteSubtaskRequest,
+} from "@/lib/workflow/subtasks/use-cases/delete-subtask"
 
 import { Result } from "@/lib/result"
 import { Command } from "@/lib/cqrs"
@@ -72,7 +107,17 @@ interface WorkflowContext {
     create(props: CreateTaskRequest): Promise<Command>
     editTitle(props: EditTaskTitleRequest): Promise<Command>
     block(props: BlockTaskRequest): Promise<Command>
+    unblock(props: UnblockTaskRequest): Promise<Command>
     delete(props: DeleteTaskRequest): Promise<Command>
+  }
+
+  subtasks: {
+    create(props: CreateSubtaskRequest): Promise<Command>
+    editReason(props: EditSubtaskReasonRequest): Promise<Command>
+    check(props: CheckSubtaskRequest): Promise<Command>
+    uncheck(props: UncheckSubtaskRequest): Promise<Command>
+    editText(props: EditSubtaskTextRequest): Promise<Command>
+    delete(props: DeleteSubtaskRequest): Promise<Command>
   }
   // blockTask(props: {
   //   columnId: string
@@ -103,6 +148,15 @@ const WorkflowContext = createContext<WorkflowContext>({
     create: async () => {},
     editTitle: async () => {},
     block: async () => {},
+    unblock: async () => {},
+    delete: async () => {},
+  },
+  subtasks: {
+    create: async () => {},
+    editReason: async () => {},
+    editText: async () => {},
+    check: async () => {},
+    uncheck: async () => {},
     delete: async () => {},
   },
   // blockTask: async () => {},
@@ -423,35 +477,71 @@ export function WorkflowProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const blockTask = useCallback(async (props: BlockTaskRequest) => {
-    try {
-      setColumns((columns) => {
+  const blockTask = useCallback(
+    async (props: BlockTaskRequest) => {
+      try {
         const index = columns.findIndex(
           (column) => column.id === props.columnId
         )
 
         if (index === -1) {
-          return columns
+          return
         }
 
         const column = columns[index]
 
         column.BlockTask(props.taskId, props.reason)
 
-        return columns.toSpliced(index, 1, column)
-      })
+        setColumns(columns.toSpliced(index, 1, column))
 
-      await blockTaskUseCase({
-        columnId: props.columnId,
-        taskId: props.taskId,
-        reason: props.reason,
-      })
-    } catch (error) {
-      if (Result.ok(error)) {
-        toast.error(error.data)
+        await blockTaskUseCase({
+          columnId: props.columnId,
+          taskId: props.taskId,
+          reason: props.reason,
+        })
+      } catch (error) {
+        if (Result.ok(error)) {
+          toast.error(error.data)
+        }
       }
-    }
-  }, [])
+    },
+    [columns]
+  )
+
+  const unblockTask = useCallback(
+    async (props: UnblockTaskRequest) => {
+      try {
+        const index = columns.findIndex(
+          (column) => column.id === props.columnId
+        )
+
+        if (index === -1) {
+          return
+        }
+
+        const column = columns[index]
+        const task = column.FindTask(props.taskId)
+
+        if (!task) {
+          return
+        }
+
+        task.Unblock()
+
+        setColumns(columns.toSpliced(index, 1, column))
+
+        await unblockTaskUseCase({
+          columnId: props.columnId,
+          taskId: props.taskId,
+        })
+      } catch (error) {
+        if (Result.ok(error)) {
+          toast.error(error.data)
+        }
+      }
+    },
+    [columns]
+  )
 
   const deleteTask = useCallback(async (props: DeleteTaskRequest) => {
     try {
@@ -482,6 +572,204 @@ export function WorkflowProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  const createSubtask = useCallback(async (props: CreateSubtaskRequest) => {
+    try {
+      await createSubtaskUseCase({
+        columnId: props.columnId,
+        taskId: props.taskId,
+        text: props.text,
+      })
+
+      const columns = await columnsRepository().list()
+
+      setColumns(columns)
+    } catch (error) {
+      if (Result.ok(error)) {
+        toast.error(error.data)
+      }
+    }
+  }, [])
+
+  const editSubtaskReason = useCallback(
+    async (props: EditSubtaskReasonRequest) => {
+      try {
+        setColumns((columns) => {
+          const index = columns.findIndex(
+            (column) => column.id === props.columnId
+          )
+
+          if (index === -1) {
+            return columns
+          }
+
+          const column = columns[index]
+          const task = column.FindTask(props.taskId)
+
+          if (!task) {
+            return columns
+          }
+
+          task.EditSubtaskReason(props.subtaskId, props.reason)
+
+          return columns.toSpliced(index, 1, column)
+        })
+
+        await editSubtaskReasonUseCase({
+          columnId: props.columnId,
+          taskId: props.taskId,
+          subtaskId: props.subtaskId,
+          reason: props.reason,
+        })
+      } catch (error) {
+        if (Result.ok(error)) {
+          toast.error(error.data)
+        }
+      }
+    },
+    []
+  )
+
+  const editSubtaskText = useCallback(async (props: EditSubtaskTextRequest) => {
+    try {
+      setColumns((columns) => {
+        const index = columns.findIndex(
+          (column) => column.id === props.columnId
+        )
+
+        if (index === -1) {
+          return columns
+        }
+
+        const column = columns[index]
+        const task = column.FindTask(props.taskId)
+
+        if (!task) {
+          return columns
+        }
+
+        task.EditSubtaskText(props.subtaskId, props.text)
+
+        return columns.toSpliced(index, 1, column)
+      })
+
+      await editSubtaskTextUseCase({
+        columnId: props.columnId,
+        taskId: props.taskId,
+        subtaskId: props.subtaskId,
+        text: props.text,
+      })
+    } catch (error) {
+      if (Result.ok(error)) {
+        toast.error(error.data)
+      }
+    }
+  }, [])
+
+  const checkSubtask = useCallback(async (props: CheckSubtaskRequest) => {
+    try {
+      setColumns((columns) => {
+        const index = columns.findIndex(
+          (column) => column.id === props.columnId
+        )
+
+        if (index === -1) {
+          return columns
+        }
+
+        const column = columns[index]
+        const task = column.FindTask(props.taskId)
+
+        if (!task) {
+          return columns
+        }
+
+        task.CheckSubtask(props.subtaskId)
+
+        return columns.toSpliced(index, 1, column)
+      })
+
+      await checkSubtaskUseCase({
+        columnId: props.columnId,
+        taskId: props.taskId,
+        subtaskId: props.subtaskId,
+      })
+    } catch (error) {
+      if (Result.ok(error)) {
+        toast.error(error.data)
+      }
+    }
+  }, [])
+
+  const uncheckSubtask = useCallback(async (props: CheckSubtaskRequest) => {
+    try {
+      setColumns((columns) => {
+        const index = columns.findIndex(
+          (column) => column.id === props.columnId
+        )
+
+        if (index === -1) {
+          return columns
+        }
+
+        const column = columns[index]
+        const task = column.FindTask(props.taskId)
+
+        if (!task) {
+          return columns
+        }
+
+        task.UncheckSubtask(props.subtaskId)
+
+        return columns.toSpliced(index, 1, column)
+      })
+
+      await uncheckSubtaskUseCase({
+        columnId: props.columnId,
+        taskId: props.taskId,
+        subtaskId: props.subtaskId,
+      })
+    } catch (error) {
+      if (Result.ok(error)) {
+        toast.error(error.data)
+      }
+    }
+  }, [])
+
+  const deleteSubtask = useCallback(async (props: DeleteSubtaskRequest) => {
+    try {
+      setColumns((columns) => {
+        const index = columns.findIndex(
+          (column) => column.id === props.columnId
+        )
+
+        if (index === -1) {
+          return columns
+        }
+
+        const column = columns[index]
+        const task = column.FindTask(props.taskId)
+
+        if (!task) {
+          return columns
+        }
+
+        task.RemoveSubtask(props.subtaskId)
+
+        return columns.toSpliced(index, 1, column)
+      })
+
+      await deleteSubtaskUseCase({
+        columnId: props.columnId,
+        taskId: props.taskId,
+        subtaskId: props.subtaskId,
+      })
+    } catch (error) {
+      if (Result.ok(error)) {
+        toast.error(error.data)
+      }
+    }
+  }, [])
+
   return (
     <WorkflowContext.Provider
       value={{
@@ -496,7 +784,16 @@ export function WorkflowProvider({ children }: { children: React.ReactNode }) {
           create: createTask,
           editTitle: editTaskTitle,
           block: blockTask,
+          unblock: unblockTask,
           delete: deleteTask,
+        },
+        subtasks: {
+          create: createSubtask,
+          editReason: editSubtaskReason,
+          editText: editSubtaskText,
+          check: checkSubtask,
+          uncheck: uncheckSubtask,
+          delete: deleteSubtask,
         },
       }}
     >

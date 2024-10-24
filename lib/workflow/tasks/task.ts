@@ -10,8 +10,6 @@ export interface TaskProps {
   title: string
   status: TaskStatus
 
-  reason?: string
-
   subtasks: Subtask[]
 }
 
@@ -21,7 +19,6 @@ interface CreateTask {
 
   title: string
   status?: TaskStatus
-  reason?: string
 
   subtasks?: Subtask[]
 }
@@ -47,20 +44,10 @@ export class Task {
     this.props.title = value
   }
 
-  get status() {
-    return this.props.status
-  }
-
-  private set status(newStatus) {
-    this.props.status = newStatus
-  }
-
-  get reason() {
-    return this.props.reason
-  }
-
-  private set reason(text) {
-    this.props.reason = text
+  get status(): TaskStatus {
+    return this.props.subtasks.find((s) => s.status === "blocked")
+      ? "blocked"
+      : "to do"
   }
 
   get subtasks() {
@@ -80,8 +67,16 @@ export class Task {
       status: props.status || "to do",
       title: props.title,
       subtasks: props.subtasks || [],
-      reason: props.reason,
     })
+  }
+
+  public AddSubtask(text: string) {
+    const subtask = Subtask.Create({
+      taskId: this.id,
+      text,
+    })
+
+    this.subtasks.push(subtask)
   }
 
   public EditTitle(title: string) {
@@ -89,7 +84,66 @@ export class Task {
   }
 
   public Block(reason: string) {
-    this.reason = reason
-    this.status = "blocked"
+    const subtask = this.subtasks.find((sub) => sub.status === "to do")
+
+    if (!subtask) {
+      throw Result.Fail("No subtasks to block.")
+    }
+
+    subtask.Block(reason)
+  }
+
+  public Unblock() {
+    const subtask = this.subtasks.find((sub) => sub.status === "blocked")
+
+    if (!subtask) {
+      throw Result.Fail("No subtasks to unblock.")
+    }
+
+    subtask.Unblock()
+  }
+
+  public EditSubtaskReason(subtaskId: string, reason: string) {
+    const subtask = this.subtasks.find((sub) => sub.id === subtaskId)
+
+    if (!subtask) {
+      throw Result.Fail("Subtask not found.")
+    }
+
+    subtask.EditReason(reason)
+  }
+
+  public EditSubtaskText(subtaskId: string, text: string) {
+    const subtask = this.subtasks.find((sub) => sub.id === subtaskId)
+
+    if (!subtask) {
+      throw Result.Fail("Subtask not found.")
+    }
+
+    subtask.EditText(text)
+  }
+
+  public CheckSubtask(subtaskId: string) {
+    const subtask = this.subtasks.find((sub) => sub.id === subtaskId)
+
+    if (!subtask) {
+      throw Result.Fail("Subtask not found.")
+    }
+
+    subtask.Check()
+  }
+
+  public UncheckSubtask(subtaskId: string) {
+    const subtask = this.subtasks.find((sub) => sub.id === subtaskId)
+
+    if (!subtask) {
+      throw Result.Fail("Subtask not found.")
+    }
+
+    subtask.Uncheck()
+  }
+
+  public RemoveSubtask(subtaskId: string) {
+    this.subtasks = this.subtasks.filter((s) => s.id !== subtaskId)
   }
 }

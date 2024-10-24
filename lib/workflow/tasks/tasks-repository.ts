@@ -18,7 +18,6 @@ interface LocalStorageTask {
   columnId: string
   title: string
   status: TaskStatus
-  reason?: string
 }
 
 class LocalStorageTasksRepository implements TasksRepository {
@@ -64,7 +63,6 @@ class LocalStorageTasksRepository implements TasksRepository {
         columnId: task.columnId,
         status: task.status,
         title: task.title,
-        reason: task.reason,
       }
 
       const taskEntry = taskList.findIndex((t) => t.id === task.id)
@@ -74,6 +72,8 @@ class LocalStorageTasksRepository implements TasksRepository {
       } else {
         taskList[taskEntry] = newTask
       }
+
+      await this.subtasksRepository.bulkSave(task.subtasks, task.id)
     }
 
     localStorage.setItem(this.tasks, JSON.stringify(taskList))
@@ -85,9 +85,6 @@ class LocalStorageTasksRepository implements TasksRepository {
     for (const task of tasksToBeDeleted) {
       await this.remove(task.id)
     }
-    // for (const subtask of task.subtasks) {
-    //   await this.subtasksRepository.save(subtask)
-    // }
   }
 
   async remove(id: string): Promise<void> {

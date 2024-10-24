@@ -3,7 +3,7 @@
 import { Subtask } from "./subtask"
 
 export interface SubtasksRepository {
-  save(subtask: Subtask): Promise<void>
+  bulkSave(subtasks: Subtask[], taskId: string): Promise<void>
   listByTaskId(taskId: string): Promise<Subtask[]>
 }
 
@@ -21,7 +21,7 @@ function localStorageSubtaskMapper(subtask: LocalStorageSubtask): Subtask {
     taskId: subtask.taskId,
     status: subtask.status,
     text: subtask.text,
-    reason: subtask.reason,
+    reason: subtask.reason || undefined,
   })
 }
 
@@ -123,28 +123,50 @@ class LocalStorageSubtasksRepository implements SubtasksRepository {
     // localStorage.setItem(this.subtasks, JSON.stringify(seed))
   }
 
-  async save(subtask: Subtask): Promise<void> {
-    const subtasks = JSON.parse(
+  private getSubtasks() {
+    return JSON.parse(
       localStorage.getItem(this.subtasks)!
     ) as Array<LocalStorageSubtask>
+  }
 
-    const subtaskEntry = subtasks.findIndex((s) => s.id === subtask.id)
+  async bulkSave(subtasks: Subtask[], taskId: string): Promise<void> {
+    const subtaskList = this.getSubtasks()
 
-    const newSubtask: LocalStorageSubtask = {
-      id: subtask.id,
-      taskId: subtask.taskId,
-      status: subtask.status,
-      text: subtask.text,
-      reason: subtask.reason,
+    for (const subtask of subtasks) {
+      const newSubtask: LocalStorageSubtask = {
+        id: subtask.id,
+        taskId: subtask.taskId,
+        status: subtask.status,
+        text: subtask.text,
+        reason: subtask.reason,
+      }
+
+      const subtaskEntry = subtaskList.findIndex((s) => s.id === subtask.id)
+
+      if (subtaskEntry === -1) {
+        subtaskList.push(newSubtask)
+      } else {
+        subtaskList[subtaskEntry] = newSubtask
+      }
     }
 
-    if (subtaskEntry > 0 && subtasks[subtaskEntry] !== newSubtask) {
-      subtasks[subtaskEntry] = newSubtask
-    } else {
-      subtasks.push(newSubtask)
-    }
+    localStorage.setItem(this.subtasks, JSON.stringify(subtaskList))
 
-    localStorage.setItem(this.subtasks, JSON.stringify(subtasks))
+    const tasksToBeDeleted = subtaskList
+      .filter((subtask) => subtask.taskId === taskId)
+      .filter((subtask) => !subtasks.find((t) => t.id === subtask.id))
+
+    for (const subtask of tasksToBeDeleted) {
+      await this.remove(subtask.id)
+    }
+  }
+
+  async remove(id: string): Promise<void> {
+    const subtasks = this.getSubtasks()
+
+    const filteredSubtasks = subtasks.filter((t) => t.id !== id)
+
+    localStorage.setItem(this.subtasks, JSON.stringify(filteredSubtasks))
   }
 
   async listByTaskId(taskId: string): Promise<Subtask[]> {

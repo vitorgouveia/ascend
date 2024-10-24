@@ -1,4 +1,4 @@
-import { Command } from "@/lib/cqrs"
+import { Command, Query } from "@/lib/cqrs"
 import { Result } from "@/lib/result"
 import { uuid } from "@/lib/uuid"
 
@@ -109,5 +109,9 @@ export class Column {
 
   public RemoveTask(taskId: string): Command {
     this.tasks = this.tasks.filter((task) => task.id !== taskId)
+  }
+
+  public FindTask(taskId: string): Query<Task | null> {
+    return this.tasks.find((task) => task.id === taskId) || null
   }
 }
