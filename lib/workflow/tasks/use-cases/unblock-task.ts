@@ -19,7 +19,7 @@ export async function unblockTask(props: UnblockTaskRequest): Promise<void> {
     throw Result.Fail("Task not found")
   }
 
-  task.Unblock(props.taskId)
+  task.Unblock()
 
   await columnsRepository().save(column)
 }

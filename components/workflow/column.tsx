@@ -141,9 +141,9 @@ function HeaderTitle({
         }}
       />
 
-      <span className="rounded-full bg-muted px-4 py-0.5 text-sm font-bold">
+      {/* <span className="rounded-full bg-muted px-4 py-0.5 text-sm font-bold">
         3
-      </span>
+      </span> */}
     </div>
   )
 }
@@ -264,10 +264,11 @@ export function Column({
           <HeaderActions id={id} />
         </ColumnHeader>
 
-        {tasks.map((task) => (
+        {tasks.map((task, index) => (
           <Task
             key={task.id}
             columnId={id}
+            index={index}
             id={task.id}
             title={task.title}
             status={task.status}

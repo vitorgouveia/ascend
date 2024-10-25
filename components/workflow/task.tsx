@@ -179,7 +179,13 @@ function TaskBlock({ id, columnId }: { id: string; columnId: string }) {
   )
 }
 
-function TaskUtils({ children }: { children: ReactNode }) {
+function TaskUtils({
+  children,
+  index,
+}: {
+  index: number
+  children: ReactNode
+}) {
   return (
     <div
       className={cn(
@@ -188,7 +194,7 @@ function TaskUtils({ children }: { children: ReactNode }) {
         "group-[.blocked]/utils:border-destructive group-[.blocked]/utils:bg-destructive group-[.blocked]/utils:text-destructive-foreground"
       )}
     >
-      <p className="shrink-0 text-sm">1h 10m</p>
+      <p className="shrink-0 text-sm">#{index + 1}</p>
 
       <div className="flex items-center gap-3">{children}</div>
     </div>
@@ -201,12 +207,14 @@ export function Task({
   title,
   status,
   subtasks,
+  index,
 }: {
   id: string
   columnId: string
   title: string
   status: TaskStatus
   subtasks: ISubtask[]
+  index: number
 }) {
   // const { activeTaskId } = useTimer()
 
@@ -234,7 +242,7 @@ export function Task({
         subtasks={subtasks}
       />
 
-      <TaskUtils>
+      <TaskUtils index={index}>
         <TaskAdd {...actionProps} />
         <TaskDelete {...actionProps} />
         <TaskBlock {...actionProps} />
