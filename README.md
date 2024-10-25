@@ -1,4 +1,4 @@
-<a href="#">
+<a href="https://ascendapp.vercel.app">
   <img
     alt="Ascend logo"
     src=".github/cover.jpg"
